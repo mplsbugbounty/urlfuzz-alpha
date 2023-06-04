@@ -1,0 +1,5 @@
+
+
+
+	{( scheme )[( : )[( / )( \ )]*N]}{{( evil_host )( evil_dir )[(.)(#)(.)]( expected_host )( @ )( directory )( .evil_host )( :fake_password )(@)(@evil_host )( evil_dir )}
+             1        2      3 - 12               13        14        15 16 17           18       19     20            21               22         23      24           25
