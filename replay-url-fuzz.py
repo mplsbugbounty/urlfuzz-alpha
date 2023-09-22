@@ -51,7 +51,7 @@ class Writer:
                 flow_copy = flow.copy()
                 self.w.add(flow_copy)
                 dpl = base64.b64decode(pl)
-                this_telequery = f"telescopiceye.mooo.com/?urlfuzz={url_for_payloads['netloc']}{url_for_payloads['path']}"
+                this_telequery = f"{url_for_payloads['netloc']}.urlfuzz.telescopiceye.mooo.com/?urlfuzz={url_for_payloads['netloc']}{url_for_payloads['path']}"
                 byte_query = bytes(this_telequery,'utf-8')
                 new_pl = dpl.replace(b"n.pr", bytes( url_for_payloads['netloc'], 'utf-8' ))
                 new_pl = new_pl.replace(b"aa-ver45.co.uk",byte_query)
@@ -71,96 +71,85 @@ class Writer:
         
 def search_for_url(flow):
     # Define the regular expression pattern for a URL
-    #url_pattern = r'(https?|ftp)://([^\s/:]+)(:[0-9]+)?(/[^?#]*)?(\?[^#]*)?(#.*)?'
     url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    request_headers = str(flow.request.headers)
-    #request_content = str(flow.request.content)
+    request_headers = urllib.parse.unquote(flow.request.headers)
     request_content = urllib.parse.unquote(flow.request.content)
-    request_text = str(flow.request.text)
-    raw_flow = str(flow)
-    decoded_request = str(flow.request.decode())
     
-    # Try to find the first match of the pattern within the input string
-    match = re.search(url_pattern, request_content)
+    # Try to find all URLs within the request headers and content
+    matches = re.search(url_pattern, request_content)
     
-    if match:
-        url_expr = match.string[match.start():]
-        for char in url_expr:
-            if char in ['"','}']:
-                url_expr = url_expr.replace(char, ' ')
-        extracted_url = url_expr.split()[0]
-        print(f"extracted_url: {extracted_url}")
-        print(f"match.groups(): {match.groups()}")
-       
-        # Extract all parameters from the parameters string
-        url_dict = dict()
-        parsed_url_tuple = urllib.parse.urlparse(extracted_url)
+    if matches:
+        content_to_file = request_content
+        for match in matches:
+            url_expr = match.string[match.start():]
+            for char in url_expr:
+                if char in ['"','}']:
+                    url_expr = url_expr.replace(char, ' ')
+            extracted_url = url_expr.split()[0]
+            print(f"extracted_url: {extracted_url}")
+            print(f"match.groups(): {match.groups()}")
+           
+            # Extract all parameters from the parameters string
+            url_dict = dict()
+            parsed_url_tuple = urllib.parse.urlparse(extracted_url)
 
-        parsed_url_tuple_dict = parsed_url_tuple._asdict()
-        for key in parsed_url_tuple_dict.keys():
-            url_dict[key] = parsed_url_tuple_dict[key] 
-        
-        if parsed_url_tuple.scheme:
-            url_dict['scheme'] = parsed_url_tuple.scheme 
-        else:
-            url_dict['scheme'] = ""
-        if parsed_url_tuple.netloc:
-            url_dict['netloc'] = parsed_url_tuple.netloc 
-        else:
-            url_dict['netloc'] = ""
-        if parsed_url_tuple.username:
-            url_dict['username'] = parsed_url_tuple.username 
-        else:
-            url_dict['username'] = ""
-        if parsed_url_tuple.path:
-            url_dict['path'] = parsed_url_tuple.path 
-        else:
-            url_dict['path'] = ""
-        if parsed_url_tuple.params:
-            url_dict['params'] = parsed_url_tuple.params 
-        else:
-            url_dict['params'] = ""
-        if parsed_url_tuple.query:
-            url_dict['query'] = parsed_url_tuple.query 
-        else:
-            url_dict['query'] = ""
-        if parsed_url_tuple.fragment:
-            url_dict['fragment'] = parsed_url_tuple.fragment 
-        else:
-            url_dict['fragment'] = ""
-        if parsed_url_tuple.password:
-            url_dict['password'] = parsed_url_tuple.password 
-        else:
-            url_dict['password'] = ""
-        if parsed_url_tuple.hostname:
-            url_dict['hostname'] = parsed_url_tuple.hostname 
-        else:
-            url_dict['hostname'] = ""
-        if parsed_url_tuple.port:
-            url_dict['port'] = parsed_url_tuple.port 
-        else:
-            url_dict['port'] = ""
+            parsed_url_tuple_dict = parsed_url_tuple._asdict()
+            for key in parsed_url_tuple_dict.keys():
+                url_dict[key] = parsed_url_tuple_dict[key] 
+            
+            if parsed_url_tuple.scheme:
+                url_dict['scheme'] = parsed_url_tuple.scheme 
+            else:
+                url_dict['scheme'] = ""
+            if parsed_url_tuple.netloc:
+                url_dict['netloc'] = parsed_url_tuple.netloc 
+            else:
+                url_dict['netloc'] = ""
+            if parsed_url_tuple.username:
+                url_dict['username'] = parsed_url_tuple.username 
+            else:
+                url_dict['username'] = ""
+            if parsed_url_tuple.path:
+                url_dict['path'] = parsed_url_tuple.path 
+            else:
+                url_dict['path'] = ""
+            if parsed_url_tuple.params:
+                url_dict['params'] = parsed_url_tuple.params 
+            else:
+                url_dict['params'] = ""
+            if parsed_url_tuple.query:
+                url_dict['query'] = parsed_url_tuple.query 
+            else:
+                url_dict['query'] = ""
+            if parsed_url_tuple.fragment:
+                url_dict['fragment'] = parsed_url_tuple.fragment 
+            else:
+                url_dict['fragment'] = ""
+            if parsed_url_tuple.password:
+                url_dict['password'] = parsed_url_tuple.password 
+            else:
+                url_dict['password'] = ""
+            if parsed_url_tuple.hostname:
+                url_dict['hostname'] = parsed_url_tuple.hostname 
+            else:
+                url_dict['hostname'] = ""
+            if parsed_url_tuple.port:
+                url_dict['port'] = parsed_url_tuple.port 
+            else:
+                url_dict['port'] = ""
 
 
-        url_literal = r"{}".format(extracted_url)
-        param_pattern = r'([^&=]+)=([^&]*)'
-        params = re.findall(param_pattern, url_dict['query'])
-        params_dict = {}
-        for p in params:
-            params_dict[p[0].lstrip('?')] = p[1]
-        url_dict['params_dict'] = params_dict
-        
-        filename_out = make_filename_from_path( url_dict['netloc'] , url_dict['path'] )
-        with open(f"{filename_out}-raw.flow", "w") as outfile:
-            outfile.write(request_content)
+            url_literal = r"{}".format(extracted_url)
+            param_pattern = r'([^&=]+)=([^&]*)'
+            params = re.findall(param_pattern, url_dict['query'])
+            params_dict = {}
+            for p in params:
+                params_dict[p[0].lstrip('?')] = p[1]
+            url_dict['params_dict'] = params_dict
 
-        url_bytes = bytes(url_literal, 'utf-8')
-        #content_to_file = re.sub(url_bytes, b"URLFUZZ", flow.request.content)
-        content_to_file = request_content.replace(url_literal, "URLFUZZ")
+            url_bytes = bytes(url_literal, 'utf-8')
+            content_to_file = content_to_file.replace(url_literal, "URLFUZZ")
         url_dict['modified_flow'] = bytes(content_to_file, 'utf-8')
-
-        with open(f"{filename_out}-fuzzable.flow", "w") as outfile:
-            outfile.write(str(content_to_file))
 
         return url_dict
     else:
