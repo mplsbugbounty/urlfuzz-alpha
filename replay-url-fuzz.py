@@ -64,7 +64,7 @@ class Writer:
         flow_copy = flow.copy()
         url_for_payloads = search_for_url(flow_copy)
         if url_for_payloads:
-            logging.warning(url_for_payloads)
+            #logging.warning(url_for_payloads)
             for pl in base_payloads:
                 await replay_modified_payload( flow_copy , url_for_payloads, pl, self.w )
             for pl in single_domain_payloads:
