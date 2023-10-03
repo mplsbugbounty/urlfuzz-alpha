@@ -236,7 +236,7 @@ async def replay_single_domain_payload( flow: http.HTTPFlow , url_for_payloads, 
         if 'modified_content' in url_for_payloads.keys():
             flow_copy.request.content = this_content_a
         if 'modified_headers' in url_for_payloads.keys():
-            flow_copy.request.headers = http.Headers(this_headers_a)
+            flow_copy.request.headers = http.Headers(this_headers_b)
         if "view" in ctx.master.addons:
             ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
         ctx.master.commands.call("replay.client", [flow_copy])
