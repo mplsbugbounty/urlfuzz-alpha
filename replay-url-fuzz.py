@@ -226,7 +226,7 @@ async def replay_single_domain_payload( flow: http.HTTPFlow , url_for_payloads, 
         dpl = base64.b64decode(pl)
         this_telequery = f"{url_for_payloads['netloc']}.urlfuzz.telescopiceye.mooo.com/?urlfuzz={url_for_payloads['netloc']}{url_for_payloads['path']}"
         byte_query = bytes(this_telequery,'utf-8')
-        other_pl = other_pl.replace(b"n.pr", byte_query)
+        other_pl = dpl.replace(b"n.pr", byte_query)
         if 'modified_content' in url_for_payloads.keys():
             this_content_b = url_for_payloads['modified_content'].replace(b"URLFUZZ",other_pl)
         if 'modified_headers' in url_for_payloads.keys():
