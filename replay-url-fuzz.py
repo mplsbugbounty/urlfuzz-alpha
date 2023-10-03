@@ -31,22 +31,22 @@ base_payloads = [
 ]
 
 single_domain_payloads = [
-"aHR0cHM6bi5wcgo=",
-"aHR0cHM6L24ucHIK",
-"aHR0cDovXC9cbi5wcgo=",
-"aHR0cHM6L1xuLnByCg==",
-"Ly9uLnByCg==",
-"XC9cL24ucHIvCg==",
-"L1wvbi5wci8K",
-"L24ucHIK",
-"JTBEJTBBL24ucHIK",
-"I24ucHIK",
-"IyUyMEBuLnByCg==",
-"QG4ucHIK",
-"aHR0cDovLzE2OS4yNTQuMTY5OC4yNTRcQG4ucHIK",
-"biUwMC5wcgo=",
-"biVFMyU4MCU4MnByCg==",
-"buOAgnByCg==",
+"aHR0cHM6bi5wcg==",
+"aHR0cHM6L24ucHI=",
+"aHR0cDovXC9cbi5wcg==",
+"aHR0cHM6L1xuLnBy",
+"Ly9uLnBy",
+"XC9cL24ucHIv",
+"L1wvbi5wci8=",
+"L24ucHI=",
+"JTBEJTBBL24ucHI=",
+"I24ucHI=",
+"IyUyMEBuLnBy",
+"QG4ucHI=",
+"aHR0cDovLzE2OS4yNTQuMTY5OC4yNTRcQG4ucHI=",
+"biUwMC5wcg==",
+"biVFMyU4MCU4MnBy",
+"buOAgnBy",
 ]
 
 class Writer:
@@ -232,7 +232,7 @@ async def replay_single_domain_payload( flow: http.HTTPFlow , url_for_payloads, 
         if 'modified_headers' in url_for_payloads.keys():
             this_headers_b = []
             for hdr in url_for_payloads['modified_headers']:
-                this_headers_b.append(( hdr[0], hdr[1].replace(b"URLFUZZ",other_pl)))
+                this_headers_b.append(( hdr[0], hdr[1].replace(b"URLFUZZ",other_pl))).strip("\n")
         if 'modified_content' in url_for_payloads.keys():
             flow_copy.request.content = this_content_a
         if 'modified_headers' in url_for_payloads.keys():
