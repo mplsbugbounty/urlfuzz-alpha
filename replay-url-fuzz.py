@@ -184,43 +184,49 @@ def search_for_url(flow):
         return None
 
 async def replay_modified_payload( flow: http.HTTPFlow , url_for_payloads, pl , plug_writer: io.FlowWriter ) -> None:
+        
+        try:
+            flow_copy = flow.copy()
+            plug_writer.add(flow_copy)
+            dpl = base64.b64decode(pl)
+            this_telequery = f"{url_for_payloads['netloc']}.urlfuzz.telescopiceye.mooo.com/?urlfuzz={url_for_payloads['netloc']}{url_for_payloads['path']}"
+            byte_query = bytes(this_telequery,'utf-8')
+            new_pl = dpl.replace(b"n.pr", bytes( url_for_payloads['netloc'], 'utf-8' ))
+            new_pl = new_pl.replace(b"aa-ver45.co.uk",byte_query)
+            other_pl = dpl.replace(b"aa-ver45.co.uk", bytes( url_for_payloads['netloc'], 'utf-8' ))
+            other_pl = other_pl.replace(b"n.pr", byte_query)
+            if 'modified_content' in url_for_payloads.keys():
+                this_content_a = url_for_payloads['modified_content'].replace(b"URLFUZZ",new_pl)
+                this_content_b = url_for_payloads['modified_content'].replace(b"URLFUZZ",other_pl)
+            if 'modified_headers' in url_for_payloads.keys():
+                this_headers_a = []
+                this_headers_b = []
+                for hdr in url_for_payloads['modified_headers']:
+                    this_headers_a.append(( hdr[0], hdr[1].replace(b"URLFUZZ",new_pl)))
+                    this_headers_b.append(( hdr[0], hdr[1].replace(b"URLFUZZ",other_pl)))
+            if 'modified_content' in url_for_payloads.keys():
+                flow_copy.request.content = this_content_a
+            if 'modified_headers' in url_for_payloads.keys():
+                flow_copy.request.headers = http.Headers(this_headers_a)
+            if "view" in ctx.master.addons:
+                ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
+            ctx.master.commands.call("replay.client", [flow_copy])
+            flow_copy = flow.copy()
+            if 'modified_content' in url_for_payloads.keys():
+                flow_copy.request.content = this_content_b
+            if 'modified_headers' in url_for_payloads.keys():
+                flow_copy.request.headers = http.Headers(this_headers_b)
+            if "view" in ctx.master.addons:
+                ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
+            ctx.master.commands.call("replay.client", [flow_copy])
+        except Exception as e:
+            logging.warning(e)
 
-        flow_copy = flow.copy()
-        plug_writer.add(flow_copy)
-        dpl = base64.b64decode(pl)
-        this_telequery = f"{url_for_payloads['netloc']}.urlfuzz.telescopiceye.mooo.com/?urlfuzz={url_for_payloads['netloc']}{url_for_payloads['path']}"
-        byte_query = bytes(this_telequery,'utf-8')
-        new_pl = dpl.replace(b"n.pr", bytes( url_for_payloads['netloc'], 'utf-8' ))
-        new_pl = new_pl.replace(b"aa-ver45.co.uk",byte_query)
-        other_pl = dpl.replace(b"aa-ver45.co.uk", bytes( url_for_payloads['netloc'], 'utf-8' ))
-        other_pl = other_pl.replace(b"n.pr", byte_query)
-        if 'modified_content' in url_for_payloads.keys():
-            this_content_a = url_for_payloads['modified_content'].replace(b"URLFUZZ",new_pl)
-            this_content_b = url_for_payloads['modified_content'].replace(b"URLFUZZ",other_pl)
-        if 'modified_headers' in url_for_payloads.keys():
-            this_headers_a = []
-            this_headers_b = []
-            for hdr in url_for_payloads['modified_headers']:
-                this_headers_a.append(( hdr[0], hdr[1].replace(b"URLFUZZ",new_pl)))
-                this_headers_b.append(( hdr[0], hdr[1].replace(b"URLFUZZ",other_pl)))
-        if 'modified_content' in url_for_payloads.keys():
-            flow_copy.request.content = this_content_a
-        if 'modified_headers' in url_for_payloads.keys():
-            flow_copy.request.headers = http.Headers(this_headers_a)
-        if "view" in ctx.master.addons:
-            ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
-        ctx.master.commands.call("replay.client", [flow_copy])
-        flow_copy = flow.copy()
-        if 'modified_content' in url_for_payloads.keys():
-            flow_copy.request.content = this_content_b
-        if 'modified_headers' in url_for_payloads.keys():
-            flow_copy.request.headers = http.Headers(this_headers_b)
-        if "view" in ctx.master.addons:
-            ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
-        ctx.master.commands.call("replay.client", [flow_copy])
+
 
 async def replay_single_domain_payload( flow: http.HTTPFlow , url_for_payloads, pl , plug_writer: io.FlowWriter ) -> None:
 
+    try:
         flow_copy = flow.copy()
         plug_writer.add(flow_copy)
         dpl = base64.b64decode(pl)
@@ -240,6 +246,8 @@ async def replay_single_domain_payload( flow: http.HTTPFlow , url_for_payloads, 
         if "view" in ctx.master.addons:
             ctx.master.commands.call("view.flows.duplicate",[flow_copy] )
         ctx.master.commands.call("replay.client", [flow_copy])
+    except Exception as e:
+        logging.warning(e)
 
 def make_filename_from_path( netloc , path ):
     replaced_netloc = netloc.replace(".","-")
